@@ -1,0 +1,36 @@
+name: pipeline
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests del backend
+        run: |
+          mkdir -p "$HOME/.m2"
+          docker run --rm -u "$(id -u):$(id -g)" \
+            -v "$PWD/Ecommerce-Backend":/app -w /app \
+            -v "$HOME/.m2":/tmp/m2 \
+            maven:3.9-eclipse-temurin-21 \
+            mvn -Dmaven.repo.local=/tmp/m2/repository test
+
+  build:
+    runs-on: self-hosted
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir imágenes
+        run: docker compose build
+
+  deploy:
+    runs-on: self-hosted
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Levantar o actualizar contenedores
+        run: docker compose up -d
